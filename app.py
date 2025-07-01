@@ -114,28 +114,32 @@ else:
         
     
 if NED_tab.button("Search NED photometry",help=f'Search object {st.session_state["query object name"]} in NED',disabled=not(can_search)):
-    #try:
-    st.session_state['NED data']=Ned.get_table(position_key, table = 'photometry')
-    neddata_df=st.session_state['NED data'].to_pandas()
-    neddata_df['nuFnu']=neddata_df["Frequency"]*neddata_df["Photometry Measurement"]
-    
-    neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].str.replace("...","0.0")
-    neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].str.replace("+/-","")
-    neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].str.replace("<","")
-    neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].str.replace(">","")
-    neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].str.replace(" ","")
-    neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].replace("","0.0")
-    
-    neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].astype(float)
-    
-    neddata_df['nuFnu_e']=neddata_df["Frequency"]*neddata_df["NED Uncertainty"]
-    
-    fig = px.scatter(neddata_df, x="Frequency", y="nuFnu", color="Observed Passband",error_y='nuFnu_e',log_x=True,log_y=True)
-    NED_tab.plotly_chart(fig)
-    
-    NED_tab.write(neddata_df)
-        #except:
-            #NED_tab.warning(f"No photometry found for {st.session_state['query object name']}")
+    try:
+        with NED_tab:
+            with st.spinner('Downloading data'):
+                st.session_state['NED data']=Ned.get_table(position_key, table = 'photometry')
+            with st.spinner('Transforming data'):
+                neddata_df=st.session_state['NED data'].to_pandas()
+                neddata_df['nuFnu']=neddata_df["Frequency"]*neddata_df["Photometry Measurement"]
+                
+                neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].str.replace("...","0.0")
+                neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].str.replace("+/-","")
+                neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].str.replace("<","")
+                neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].str.replace(">","")
+                neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].str.replace(" ","")
+                neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].replace("","0.0")
+                
+                neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].astype(float)
+                
+                neddata_df['nuFnu_e']=neddata_df["Frequency"]*neddata_df["NED Uncertainty"]
+        
+            with st.spinner('Graphing data'):
+                fig = px.scatter(neddata_df, x="Frequency", y="nuFnu", color="Observed Passband",error_y='nuFnu_e',log_x=True,log_y=True)
+                NED_tab.plotly_chart(fig)
+            
+            NED_tab.write(neddata_df)
+    except:
+        NED_tab.warning(f"No photometry found for {st.session_state['query object name']}")
             
             
 
