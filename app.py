@@ -51,6 +51,13 @@ if 'NED data' not in st.session_state:
     
 if 'current query'not in st.session_state:
     st.session_state['current query'] =''
+    
+    
+if 'object ra' not in st.session_state:
+    st.session_state['object ra']=0.0
+    
+if 'object dec' not in st.session_state:
+    st.session_state['object dec']=0.0
 
 parameters_col, information_col= st.columns([1,3])
 
