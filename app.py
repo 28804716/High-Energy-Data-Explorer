@@ -106,9 +106,11 @@ if query_key in st.session_state:#dont search the same catalog for the same info
 else:
     if HEASARC_tab.button(f"Search {catalogue_to_search[0]}",help=f"Search {catalogue_to_search[0]} ({search_radius}° radius around ({st.session_state['object ra']},{st.session_state['object dec']}) )"):
         print("query heasarc")
-        HEASARC_table=Heasarc.query_region(st.session_state[position_key], catalog=catalogue_to_search[0],radius=search_radius*deg)
-        HEASARC_table=HEASARC_table
-        st.session_state[query_key]=HEASARC_table
+        with HEASARC_tab:
+            with st.spinner("Running query..."):
+                HEASARC_table=Heasarc.query_region(st.session_state[position_key], catalog=catalogue_to_search[0],radius=search_radius*deg)
+                HEASARC_table=HEASARC_table
+                st.session_state[query_key]=HEASARC_table
         
     
 if NED_tab.button("Search NED photometry",help=f'Search object {st.session_state["query object name"]} in NED',disabled=not(can_search)):
