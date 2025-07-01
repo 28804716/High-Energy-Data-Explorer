@@ -113,7 +113,7 @@ else:
     
 if NED_tab.button("Search NED photometry",help=f'Search object {st.session_state["query object name"]} in NED',disabled=not(can_search)):
     #try:
-    st.session_state['NED data']=Ned.get_table(st.session_state['query object name'], table = 'photometry')
+    st.session_state['NED data']=Ned.get_table(position_key, table = 'photometry')
     neddata_df=st.session_state['NED data'].to_pandas()
     neddata_df['nuFnu']=neddata_df["Frequency"]*neddata_df["Photometry Measurement"]
     
@@ -134,16 +134,20 @@ if NED_tab.button("Search NED photometry",help=f'Search object {st.session_state
     NED_tab.write(neddata_df)
         #except:
             #NED_tab.warning(f"No photometry found for {st.session_state['query object name']}")
-else:
+            
+            
 
-    if NED_tab.button("Search NED photometry",help=f"Search Position (RA,DEC) = ({st.session_state['position'].ra},{st.session_state['position'].dec}) in NED",disabled=not(can_search)):
-        try:
+#else:
+
+    
+    #if NED_tab.button("Search NED photometry",help=f"Search Position (RA,DEC) = ({st.session_state['object ra']},{st.session_state['object dec']}) in NED",disabled=not(can_search)):
+        #try:
             
-            st.session_state['NED data']=Ned.get_table(st.session_state['position'],radius=search_radius*deg, table = 'photometry')
+            #st.session_state['NED data']=Ned.get_table(st.session_state[position_key],radius=search_radius*deg, table = 'photometry')
             
-            NED_tab.write(st.session_state['NED data'])
-        except:
-            NED_tab.warning(f"No photometry found for (RA,DEC) = ({st.session_state['position'].ra},{st.session_state['position'].dec})")
+            #NED_tab.write(st.session_state['NED data'])
+        #except:
+            #NED_tab.warning(f"No photometry found for (RA,DEC) = ({st.session_state['object ra']},{st.session_state['object dec']})")
 
 has_searched_heasarc=True if query_key in st.session_state else False
 
