@@ -31,8 +31,8 @@ def get_position(object_name=None,ra=None,dec=None):
                 st.session_state['object dec']=st.session_state[input_object_name].dec.value
                 st.session_state['current query'] = input_object_name
             except:
-                st.warning(f"Could not resolve name {input_object_name}")
-                st.session_state['object ra']=None
+                st.warning(f"Could not resolve name \"{input_object_name}\"")
+                st.session_state['object ra'] =None
                 st.session_state['object dec']=None
     if ra and dec:
         st.session_state['user position']=SkyCoord(ra=ra*deg,dec=dec*deg)
@@ -78,7 +78,7 @@ input_object_name = parameters_col.text_input("Object Name",value=default_name_v
 
 if query_type == 'Resolve Name':
     if st.session_state['current query'] != input_object_name:#we already have the position, it should not be requested again
-       get_position(object_name=input_object_name)
+        get_position(object_name=input_object_name)
 
 ra_text=parameters_col.number_input('RA', value=st.session_state['object ra'],disabled= (query_type == 'Resolve Name'))
 dec_text=parameters_col.number_input('DEC', value=st.session_state['object dec'],disabled= (query_type == 'Resolve Name'))
@@ -104,7 +104,7 @@ if query_key in st.session_state:#dont search the same catalog for the same info
     print("skipped catalogue search, used local data")
     HEASARC_table=st.session_state[query_key]
 else:
-    if HEASARC_tab.button(f"Search {catalogue_to_search[0]}",help=f"Search {catalogue_to_search[0]} ({search_radius}° radius around ({st.session_state['object ra']},{st.session_state['object dec']}) )"):
+    if HEASARC_tab.button(f"Search {catalogue_to_search[0]}",help=f"Search {catalogue_to_search[0]} ({search_radius}° radius around ({st.session_state['object ra']},{st.session_state['object dec']}) )",type="primary"):
         print("query heasarc")
         with HEASARC_tab:
             with st.spinner("Running query..."):
@@ -112,15 +112,18 @@ else:
                 HEASARC_table=HEASARC_table
                 st.session_state[query_key]=HEASARC_table
         
-    
-if NED_tab.button("Search NED photometry",help=f'Search object {st.session_state["query object name"]} in NED',disabled=not(can_search)):
+  
+has_ned_data=False
+if NED_tab.button("Search NED photometry",help=f'Search object {st.session_state["query object name"]} in NED',disabled=not(can_search),type="primary"):
     try:
         with NED_tab:
             with st.spinner('Downloading data'):
                 st.session_state['NED data']=Ned.get_table(position_key, table = 'photometry')
             with st.spinner('Transforming data'):
                 neddata_df=st.session_state['NED data'].to_pandas()
-                neddata_df['nuFnu']=neddata_df["Frequency"]*neddata_df["Photometry Measurement"]
+                
+                neddata_df['nuFnu']=neddata_df["Frequency"]*neddata_df["Flux Density"]*(neddata_df['NED Units']=='Jy')+\
+                    neddata_df["Flux Density"]*(neddata_df['NED Units']=='Jy-Hz')
                 
                 neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].str.replace("...","0.0")
                 neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].str.replace("+/-","")
@@ -131,17 +134,40 @@ if NED_tab.button("Search NED photometry",help=f'Search object {st.session_state
                 
                 neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].astype(float)
                 
-                neddata_df['nuFnu_e']=neddata_df["Frequency"]*neddata_df["NED Uncertainty"]
-        
+                neddata_df['nuFnu_e']=(1+neddata_df["Frequency"]*(neddata_df['NED Units']=='Jy'))*neddata_df["NED Uncertainty"]
+                NED_tab.download_button(
+                    label="Download text",
+                    data=((st.session_state['NED data']).to_pandas()).to_csv(index=False).encode('utf-8'),
+                    on_click="ignore",
+                    type="secondary",
+                    icon=":material/download:",
+                )    
             with st.spinner('Graphing data'):
-                fig = px.scatter(neddata_df, x="Frequency", y="nuFnu", color="Observed Passband",error_y='nuFnu_e',log_x=True,log_y=True)
+                fig = px.scatter(neddata_df, x="Frequency", y="nuFnu",
+                                 color="Observed Passband",rror_y='nuFnu_e',
+                                 log_x=True,log_y=True,
+                                 title="SED",
+                                 labels={
+                                     "Frequency": "Frequency [Hz]",
+                                     "nuFnu": r'$\nu F_\nu$ [JyHz]',
+                                 })
                 NED_tab.plotly_chart(fig)
             
             NED_tab.write(neddata_df)
+            has_ned_data=True
     except:
         NED_tab.warning(f"No photometry found for {st.session_state['query object name']}")
-            
-            
+   
+        
+@st.dialog("Citations")
+def download():
+    st.write("Please cite NED and any related works correctly.")
+    st.write("https://ned.ipac.caltech.edu/Documents/Overview/Acknowledgments")
+    if st.button("Okay"):
+        st.rerun()
+        
+ned_download_name=input_object_name if query_type == 'Resolve Name' else f"RA:{st.session_state['object ra']}-DEC:{st.session_state['object ra']}"
+          
 
 #else:
 
@@ -175,7 +201,9 @@ else:
                 HEASARC_tab.divider()
                 selected_row = selected_obs.selection.rows[0]
                 filtered_tab = HEASARC_table[selected_row:selected_row+1]
-                data_location=Heasarc.locate_data(filtered_tab)[0]
+                with HEASARC_tab:
+                    with st.spinner("Fetching data location..."):
+                            data_location=Heasarc.locate_data(filtered_tab)[0]
                 data_length=data_location['content_length']
                 if data_length < 1e3:
                     HEASARC_tab.markdown(f"Data directory ({data_length*1e-3:.1f} KB) {data_location['access_url']}")
@@ -188,3 +216,10 @@ else:
     
                 HEASARC_tab.markdown('Download command:',help='Copy and paste the following text into your command line to download the data')
                 HEASARC_tab.code(f"wget -q -nH --no-check-certificate --cut-dirs=5 -r -w1 -l0 -c -N -np -R 'index*' -erobots=off --retr-symlinks {data_location['access_url']}",language='None')
+
+
+st.divider()
+
+st.markdown("__Acknowledgements__")
+st.markdown("*This interface has made use of data, software and/or web tools obtained from the High Energy Astrophysics Science Archive Research Center (HEASARC), a service of the Astrophysics Science Division at NASA/GSFC and of the Smithsonian Astrophysical Observatory's High Energy Astrophysics Division.*" )
+st.markdown("*This interface has made use of the NASA/IPAC Extragalactic Database, which is funded by the National Aeronautics and Space Administration and operated by the California Institute of Technology.*")
