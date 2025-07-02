@@ -153,7 +153,7 @@ if NED_tab.button("Search NED photometry",help=f'Search object {st.session_state
                                  })
                 NED_tab.plotly_chart(fig)
             
-            NED_tab.write(neddata_df)
+            NED_tab.dataframe(neddata_df)
             has_ned_data=True
     except:
         NED_tab.warning(f"No photometry found for {st.session_state['query object name']}")
