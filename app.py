@@ -74,7 +74,9 @@ query_type=parameters_col.radio("Query Type",['Resolve Name', 'Coordinates'])
 parameters_col.divider()
 
 default_name_value = st.session_state['query object name'] if query_type == 'Resolve Name' else '-'
+
 input_object_name = parameters_col.text_input("Object Name",value=default_name_value,disabled= (query_type != 'Resolve Name'))
+
 
 if query_type == 'Resolve Name':
     if st.session_state['current query'] != input_object_name:#we already have the position, it should not be requested again
@@ -87,7 +89,7 @@ if query_type == 'Coordinates':
     get_position(ra=ra_text,dec=dec_text)
     
 
-search_radius=parameters_col.number_input('Search Radius [ ° ]', min_value=0.0, value=5.000)
+search_radius=parameters_col.number_input('Search Radius [ ° ]', min_value=0.0, value=1.000)
 parameters_col.divider()
     
 catalogue_name_to_search=HEASARC_tab.selectbox('Select Catalog:', st.session_state['list_of_catalogues']['description'])
@@ -114,11 +116,18 @@ else:
         
   
 has_ned_data=False
-if NED_tab.button("Search NED photometry",help=f'Search object {st.session_state["query object name"]} in NED',disabled=not(can_search),type="primary"):
+
+ned_tip = 'Only queries by name are supported for NED' if query_type == 'Coordinates' else f'Search object "{input_object_name}" in NED'
+if NED_tab.button("Search NED photometry",help=ned_tip,
+                  disabled=query_type == 'Coordinates' or not(input_object_name),type="primary"):
+    
+    table_query= st.session_state['user position'] if query_type=='Coordinates' else input_object_name
+    
     try:
         with NED_tab:
             with st.spinner('Downloading data'):
-                st.session_state['NED data']=Ned.get_table(position_key, table = 'photometry')
+                
+                st.session_state['NED data']=Ned.get_table(table_query, table = 'photometry')
             with st.spinner('Transforming data'):
                 neddata_df=st.session_state['NED data'].to_pandas()
                 
@@ -135,12 +144,16 @@ if NED_tab.button("Search NED photometry",help=f'Search object {st.session_state
                 neddata_df["NED Uncertainty"]=neddata_df["NED Uncertainty"].astype(float)
                 
                 neddata_df['nuFnu_e']=(1+neddata_df["Frequency"]*(neddata_df['NED Units']=='Jy'))*neddata_df["NED Uncertainty"]
+                
+                ned_download_name=input_object_name if query_type == 'Resolve Name' else f"({ra_text}, {dec_text})"
+
                 NED_tab.download_button(
                     label="Download text",
                     data=((st.session_state['NED data']).to_pandas()).to_csv(index=False).encode('utf-8'),
                     on_click="ignore",
                     type="secondary",
                     icon=":material/download:",
+                    file_name=ned_download_name+' NED data.csv'
                 )    
             with st.spinner('Graphing data'):
                 fig = px.scatter(neddata_df, x="Frequency", y="nuFnu",
@@ -161,7 +174,7 @@ if NED_tab.button("Search NED photometry",help=f'Search object {st.session_state
             has_ned_data=True
     except Exception as e:
         name = f"user position (RA={ra_text}, DEC={dec_text})" if query_type != 'Resolve Name' else input_object_name
-        NED_tab.warning(f"No photometry found for {name}\n{e}")
+        NED_tab.warning(f"No photometry found for {table_query}\n{e}")
    
         
 @st.dialog("Citations")
