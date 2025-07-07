@@ -115,7 +115,7 @@ else:
   
 has_ned_data=False
 if NED_tab.button("Search NED photometry",help=f'Search object {st.session_state["query object name"]} in NED',disabled=not(can_search),type="primary"):
-    #try:
+    try:
         with NED_tab:
             with st.spinner('Downloading data'):
                 st.session_state['NED data']=Ned.get_table(position_key, table = 'photometry')
@@ -159,9 +159,9 @@ if NED_tab.button("Search NED photometry",help=f'Search object {st.session_state
             
             NED_tab.dataframe(neddata_df)
             has_ned_data=True
-    #except:
-        #name = f"user position (RA={ra_text}, DEC={dec_text})" if query_type != 'Resolve Name' else input_object_name
-        #NED_tab.warning(f"No photometry found for {name}")
+    except Exception as e:
+        name = f"user position (RA={ra_text}, DEC={dec_text})" if query_type != 'Resolve Name' else input_object_name
+        NED_tab.warning(f"No photometry found for {name}\n{e}")
    
         
 @st.dialog("Citations")
