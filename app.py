@@ -99,6 +99,8 @@ catalogue_to_search=st.session_state['list_of_catalogues']['name'][st.session_st
 position_key=f"user position ({ra_text}, {dec_text})" if query_type != 'Resolve Name' else input_object_name
 query_key=position_key+' '+catalogue_name_to_search
 
+st.session_state[position_key]=SkyCoord(ra=ra_text*deg, dec=dec_text*deg)
+
 
 HEASARC_table=''
     
